@@ -1,6 +1,5 @@
 import requests
 import re
-import discord
 import os
 import zoneinfo
 import traceback
@@ -10,10 +9,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-TOKEN = os.getenv("BOT_TOKEN", "")
+WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 VISUALIZER_TOKEN = os.getenv("VISUALIZER_TOKEN", "")
 VISUALIZER_URL = os.getenv("VISUALIZER_URL", "")
-CHANNELS = list(map(int, os.getenv("CHANNELS", "").split(' ')))
 MANADA_USER = os.getenv("MANADA_USER", "")
 MANADA_PWD = os.getenv("MANADA_PWD", "")
 AUTH_URL = os.getenv("AUTH_URL", "")
@@ -26,8 +24,7 @@ if not all(
     [
         e
         for e in (
-            TOKEN,
-            CHANNELS,
+            WEBHOOK_URL,
             MANADA_USER,
             MANADA_PWD,
             AUTH_URL,
@@ -130,7 +127,7 @@ def send_to_visualizer(dues):
     requests.put(VISUALIZER_URL, headers=headers, json=dues)
 
 
-def get_messages() -> list[discord.Embed]:
+def get_messages() -> list[dict]:
     headers = {"User-Agent": UA}
 
     cookies = get_shib()
@@ -174,16 +171,20 @@ def get_messages() -> list[discord.Embed]:
         title = url_name.group(2).replace("amp;", "")
         course = course.group(1).replace("amp;", "")
         color = COLOR_LIST[priority]
-        embed = discord.Embed(title=title, url=url, color=color)
-        embed.add_field(name="コース", value=course, inline=False)
-        embed.add_field(
-            name="締切", value=due_readable.strftime(DUE_FORMAT), inline=True
-        )
-        embed.add_field(
-            name="残り時間",
-            value=f"{due_remain.days}d {due_remain.seconds // (60 * 60)}h {due_remain.seconds // 60 % 60}m",
-            inline=True,
-        )
+        embed = {
+            "title": title,
+            "url": url,
+            "color": color,
+            "fields": [
+                {"name": "コース", "value": course, "inline": False},
+                {"name": "締切", "value": due_readable.strftime(DUE_FORMAT), "inline": True},
+                {
+                    "name": "残り時間",
+                    "value": f"{due_remain.days}d {due_remain.seconds // (60 * 60)}h {due_remain.seconds // 60 % 60}m",
+                    "inline": True,
+                },
+            ],
+        }
         res.append(embed)
         dues.append({"title": title, "deadline": due_iso, "course": course})
 
@@ -195,35 +196,24 @@ def get_messages() -> list[discord.Embed]:
             if did_notified:
                 return []
             else:
-                embed = discord.Embed(title="直近の課題なし", color=NO_TASK)
+                embed = {"title": "直近の課題なし", "color": NO_TASK}
                 res.append(embed)
                 f.write(NOTIFIED_TXT)
     send_to_visualizer(dues)
     return res
 
 
-def send_msg(msgs: list[discord.Embed], channel: int):
-    client = discord.Client(intents=discord.Intents.default())
-
-    @client.event
-    async def on_ready():
-        for msg in msgs:
-            await client.get_channel(channel).send(embed=msg)
-        await client.close()
-
-    client.run(TOKEN)
+def send_msg(msgs: list[dict]):
+    for msg in msgs:
+        data = {"embeds": [msg]}
+        response = requests.post(WEBHOOK_URL, json=data)
+        response.raise_for_status()
 
 
 def send_err(msg: str):
-    client = discord.Client(intents=discord.Intents.default())
-
-    @client.event
-    async def on_ready():
-        for channel in CHANNELS:
-            await client.get_channel(channel).send(f"```{msg}```")
-        await client.close()
-
-    client.run(TOKEN)
+    data = {"content": f"```{msg}```"}
+    response = requests.post(WEBHOOK_URL, json=data)
+    response.raise_for_status()
 
 
 if __name__ == "__main__":
@@ -231,7 +221,6 @@ if __name__ == "__main__":
         msg = get_messages()
         if not msg:
             exit(0)
-        for channel in CHANNELS:
-            send_msg(msg, channel)
+        send_msg(msg)
     except Exception:
         send_err(traceback.format_exc())
