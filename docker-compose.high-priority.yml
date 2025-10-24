@@ -1,0 +1,15 @@
+version: "2"
+services:
+  mana-kadai:
+    build: .
+    environment:
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - VISUALIZER_TOKEN=${VISUALIZER_TOKEN}
+      - VISUALIZER_URL=${VISUALIZER_URL}
+      - MANADA_USER=${MANADA_USER}
+      - MANADA_PWD=${MANADA_PWD}
+      - MANADA_URL=${MANADA_URL}
+      - AUTH_URL=${AUTH_URL}
+      - FILTER_24H_ONLY=true
+    volumes:
+      - ./manada.stat:/opt/mana-kadai/manada.stat
