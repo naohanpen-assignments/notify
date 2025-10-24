@@ -16,6 +16,7 @@ MANADA_USER = os.getenv("MANADA_USER", "")
 MANADA_PWD = os.getenv("MANADA_PWD", "")
 AUTH_URL = os.getenv("AUTH_URL", "")
 MANADA_URL = os.getenv("MANADA_URL", "")
+FILTER_24H_ONLY = os.getenv("FILTER_24H_ONLY", "false").lower() in ("true", "1", "yes")
 STATUS_FILE_PATH = "/opt/mana-kadai/manada.stat"
 
 NOTIFIED_TXT = 'notified'
@@ -151,6 +152,10 @@ def get_messages() -> list[dict]:
 
         # overdue check
         if due_remain < timedelta(days=0):
+            continue
+
+        # If FILTER_24H_ONLY is enabled, skip assignments not expiring within 24 hours
+        if FILTER_24H_ONLY and due_remain >= timedelta(days=1):
             continue
 
         if due_remain < timedelta(days=1):
