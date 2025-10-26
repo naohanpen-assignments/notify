@@ -201,7 +201,8 @@ def get_messages() -> list[dict]:
             if did_notified:
                 return []
             else:
-                embed = {"title": "直近の課題なし", "color": NO_TASK}
+                no_task_message = "直近 24 時間の課題なし" if FILTER_24H_ONLY else "直近の課題なし"
+                embed = {"title": no_task_message, "color": NO_TASK}
                 res.append(embed)
                 f.write(NOTIFIED_TXT)
     send_to_visualizer(dues)
